@@ -1,0 +1,132 @@
+# Human-in-the-Loop CAPTCHA Solver (x402)
+
+A Cloudflare Worker that gates CAPTCHA solving behind [x402](https://x402.org) USDC payments, spins up a headless browser with [Browser Rendering](https://developers.cloudflare.com/browser-run/), notifies your phone via [ntfy.sh](https://ntfy.sh), and hands the challenge to a mobile-friendly solve page.
+
+## What it demonstrates
+
+- **x402 payment gating** on `POST /api/solve-captcha` (HTTP 402 until a valid USDC receipt is supplied)
+- **Cloudflare Browser Rendering** via `@cloudflare/puppeteer` and the `MYBROWSER` binding
+- **Human handoff** with a durable session, mobile solve UI, and token injection back into the headless browser
+- **ntfy.sh push** so you can tap a notification on your phone and solve immediately
+
+## Architecture
+
+```mermaid
+sequenceDiagram
+  participant Agent as External agent
+  participant Worker as hitl-captcha-x402 Worker
+  participant x402 as x402 facilitator
+  participant DO as CaptchaSession DO
+  participant Browser as Browser Rendering
+  participant Phone as Your phone (ntfy + /solve)
+
+  Agent->>Worker: POST /api/solve-captcha { url }
+  Worker-->>Agent: 402 Payment Required (USDC details)
+  Agent->>Worker: Retry with payment receipt
+  Worker->>x402: Verify payment
+  Worker->>DO: Start session
+  DO->>Browser: Launch + navigate
+  Browser-->>DO: CAPTCHA detected
+  DO->>Phone: ntfy.sh notification with /solve/:id link
+  Worker-->>Agent: 202 { sessionId, solveUrl }
+  Phone->>Worker: GET /solve/:sessionId
+  Phone->>Worker: POST /api/session/:id/submit { token }
+  DO->>Browser: Inject token + capture cookies
+  Agent->>Worker: GET /api/session/:id/status
+  Worker-->>Agent: { status: solved, result }
+```
+
+## Running locally
+
+```sh
+cd examples/hitl-captcha-x402
+cp .env.example .dev.vars
+```
+
+Set these values in `.dev.vars`:
+
+- `SERVER_ADDRESS` — Ethereum address to receive x402 payments (Base Sepolia testnet: `eip155:84532`)
+- `NTFY_TOPIC` — ntfy.sh topic you subscribe to on your phone
+
+Then:
+
+```sh
+pnpm install
+pnpm run dev
+```
+
+Subscribe to your ntfy topic on your phone (ntfy app or `https://ntfy.sh/your-topic`).
+
+## Deploy
+
+```sh
+pnpm run deploy
+wrangler secret put SERVER_ADDRESS
+```
+
+`wrangler.jsonc` is the canonical config in this monorepo. `wrangler.toml` is included as an equivalent TOML copy.
+
+## API
+
+### `POST /api/solve-captcha`
+
+Paid endpoint. Without a valid x402 payment receipt, responds with **HTTP 402** and USDC payment requirements.
+
+```json
+{
+  "url": "https://example.com/login",
+  "wait": false,
+  "callbackUrl": "https://your-agent.example/hooks/captcha-solved"
+}
+```
+
+- `wait: true` — blocks up to 5 minutes until the human solves the challenge
+- `callbackUrl` — optional webhook when the session completes
+
+Response (async mode):
+
+```json
+{
+  "sessionId": "abc123",
+  "status": "awaiting_human",
+  "solveUrl": "https://your-worker.dev/solve/abc123",
+  "challenge": {
+    "kind": "turnstile",
+    "siteKey": "0x...",
+    "pageUrl": "https://example.com/login",
+    "pageTitle": "Login"
+  }
+}
+```
+
+### `GET /solve/:sessionId`
+
+Mobile solve page. Touch-friendly UI renders the detected widget (Turnstile, reCAPTCHA, or hCaptcha) and posts the token back to the worker.
+
+### `GET /api/session/:sessionId/status`
+
+Poll session state and retrieve the auth payload when solved.
+
+### `POST /api/session/:sessionId/submit`
+
+Submit a CAPTCHA token from the mobile page (normally called automatically by the solve UI).
+
+## Auth payload
+
+When solved, the service returns cookies, storage, and the final URL from the headless browser session:
+
+```json
+{
+  "cookies": [{ "name": "session", "value": "...", "domain": ".example.com" }],
+  "localStorage": {},
+  "sessionStorage": {},
+  "finalUrl": "https://example.com/dashboard",
+  "userAgent": "Mozilla/5.0 ..."
+}
+```
+
+## Related examples
+
+- [`x402`](../x402/) — HTTP payment gating with Hono middleware
+- [`browser-live-view`](../browser-live-view/) — human browser handoff via Live View
+- [`guides/human-in-the-loop`](../../guides/human-in-the-loop/) — narrative HITL patterns with the Agents SDK
