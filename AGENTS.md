@@ -194,3 +194,12 @@ CI runs on every PR (`pnpm install --frozen-lockfile && pnpm run build && pnpm r
 - Use CommonJS or Service Worker format — ES modules only
 - Modify `node_modules/` or `dist/` directories
 - Force push to main
+
+## Cursor Cloud specific instructions
+
+Notes for cloud agents working in this monorepo. The VM snapshot already has Node 24, `pnpm` (via corepack), and Playwright Chromium installed; the startup update script only runs `pnpm install`.
+
+- **Node version:** The repo requires Node 24+, but the base VM's default `node` on `PATH` (`/exec-daemon/node`) is Node 22. Node 24 is installed via `nvm` and `~/.bashrc` prepends it, so interactive shells get Node 24 automatically (`node -v` → v24). `pnpm` is provided by corepack on that Node. If a shell somehow lands on Node 22, run `nvm use 24`.
+- **Full test suite needs a browser.** `pnpm run test` runs browser/React tests (via `@vitest/browser-playwright`) inside the `agents`, `@cloudflare/ai-chat`, `@cloudflare/voice`, and `@cloudflare/codemode` projects. Without Playwright's Chromium they fail with `browserType.launch: Executable doesn't exist`. Install it with `pnpm run prepare:playwright` (idempotent). `pnpm run test:react` also depends on it.
+- **Running example apps locally:** `cd examples/<name> && pnpm start` (Vite dev on port 5173). Many examples (e.g. `playground`, `ai-chat`, `assistant`, `agents-as-tools`) set `"remote": true` on the `ai` binding, so `vite dev` tries to open a **remote Cloudflare proxy session and fails without `CLOUDFLARE_API_TOKEN`** ("Could not start remote dev session. No credentials found"). For a fully-offline run, use an example with no remote binding — e.g. `examples/dynamic-workers` (Worker Loader demo, zero secrets), `examples/workflows`, or `examples/push-notifications`. Note some LLM examples (e.g. `tictactoe`) start locally but need their own API key at runtime.
+- **Test output noise:** Passing test runs print `uncaught exception ...`, `Simulated ... error`, and "Durable Object reset" lines by design (recovery/error-path fixtures), and Nx may label the workers-runtime test tasks "flaky". Judge pass/fail by the `Test Files ... passed` / `NX Successfully ran target test` summary, not by these logs.
