@@ -10,7 +10,7 @@ handoff to token injection back into Browser Rendering.
 |------|-------|
 | Worker name | `hitl-captcha-x402` |
 | Live URL | `https://hitl-captcha-x402.<your-subdomain>.workers.dev` |
-| Payment network | Base Sepolia (`eip155:84532`) |
+| Payment network | **Base mainnet** (`eip155:8453`) — testnet verified on Sepolia (`eip155:84532`) |
 | Price per solve | `$0.25` USDC |
 | Browser binding | `MYBROWSER` (Browser Rendering) |
 | Session store | `CaptchaSession` Durable Object |
@@ -20,7 +20,9 @@ Deploy from this example directory:
 ```sh
 cd examples/hitl-captcha-x402
 pnpm install
-wrangler secret put SERVER_ADDRESS   # Ethereum address to receive USDC
+wrangler secret put SERVER_ADDRESS   # Base mainnet address to receive USDC
+wrangler secret put CDP_API_KEY_ID
+wrangler secret put CDP_API_KEY_SECRET
 pnpm run deploy --var "NTFY_TOPIC:your-ntfy-topic"
 ```
 
@@ -36,26 +38,29 @@ This example follows the [x402 welcome guide](https://docs.cdp.coinbase.com/x402
 |-------------|----------------|
 | HTTP 402 + `PAYMENT-REQUIRED` on unpaid calls | `@x402/hono` `paymentMiddleware` on `POST /api/solve-captcha` |
 | `PAYMENT-SIGNATURE` / `X-PAYMENT` on retry | Buyer clients (e.g. `scripts/pay-and-solve.sh`, CDP CLI) |
-| CAIP-2 network id (`eip155:84532`) | `X402_NETWORK` var |
-| CDP facilitator verify/settle | `CDP_API_KEY_*` secrets → `@coinbase/x402` `createFacilitatorConfig` |
-| Bazaar `declareDiscoveryExtension` | `src/x402-config.ts` — input schema + example body for crawl |
-| `mimeType` + `description` on route | `application/json` + human-readable solve description |
+| CAIP-2 network id (`eip155:8453`) | `X402_NETWORK` var (default Base mainnet) |
+| CDP facilitator verify/settle | `CDP_API_KEY_*` secrets → `@coinbase/x402` `createFacilitatorConfig` at `https://api.cdp.coinbase.com/platform/v2/x402` |
+| Bazaar `declareDiscoveryExtension` | `src/x402-config.ts` — strict JSON Schema input + example body |
+| `bazaarResourceServerExtension` | Auto-registered by `@x402/hono` when Bazaar extensions are declared |
+| `mimeType` + semantic `description` | `application/json` + agent-friendly natural language description |
 | `paymentPayload.resource` on settle | Handled by `@x402/hono` when using CDP facilitator |
+| Bazaar MCP for agents | Buyers use `https://api.cdp.coinbase.com/platform/v2/x402/discovery/mcp` (`search_resources`, `proxy_tool_call`) — see [CDP MCP](https://docs.cdp.coinbase.com/mcp) |
 | Mobile solve UI | Server-rendered HTML at `/solve/:sessionId` (`src/mobile-ui.ts`) |
 
-Bazaar indexing happens after the **first successful CDP settlement** for the endpoint. Search the catalog with:
+Bazaar indexing happens after the **first successful CDP mainnet settlement** for the endpoint. Search the catalog with:
 
 ```sh
-curl "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=captcha&resource=hitl-captcha"
+curl "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=human+in+the+loop+captcha&network=eip155:8453"
 ```
 
 ## Prerequisites
 
 1. **Cloudflare account** with Workers, Browser Rendering, and Durable Objects enabled
 2. **`workers.dev` subdomain** — open Workers & Pages once in the dashboard if deploy fails with code `10063`
-3. **`SERVER_ADDRESS` secret** — Base Sepolia wallet to receive x402 USDC
-4. **`NTFY_TOPIC`** — ntfy.sh topic you subscribe to on your phone
-5. **Buyer wallet** with Base Sepolia USDC (for paid API calls) — e.g. a CDP server wallet
+3. **`SERVER_ADDRESS` secret** — Base mainnet wallet to receive x402 USDC
+4. **`CDP_API_KEY_ID` / `CDP_API_KEY_SECRET`** — required for mainnet verify/settle and Bazaar indexing
+5. **`NTFY_TOPIC`** — ntfy.sh topic you subscribe to on your phone
+6. **Buyer wallet** with **Base mainnet USDC** (for paid API calls) — e.g. a CDP server wallet
 
 ## Phone setup (ntfy)
 
@@ -107,11 +112,11 @@ export CDP_WALLET_SECRET="..."
 export CDP_URL="https://api.cdp.coinbase.com/platform/v2"
 ```
 
-Use a CDP server wallet that holds Base Sepolia USDC (not a freshly created empty wallet):
+Use a CDP server wallet that holds **Base mainnet USDC** (not Sepolia testnet USDC):
 
 ```sh
 cdp evm accounts list
-cdp data evm token-balances base-sepolia 0xYourBuyerAddress
+cdp data evm token-balances base 0xYourBuyerAddress
 ```
 
 ### One-shot paid request
@@ -198,7 +203,8 @@ Completed via ntfy handoff on Moto G; token injected back into Browser Rendering
 |---------|-------|-----|
 | ntfy opens worker homepage only | Manual test ping, not a real solve | Wait for **"CAPTCHA needs your attention"** alert after paid API call |
 | Status `failed` — "Unable to evaluate script in any frame" | Headless page lost after DO sleep; token not passed to Puppeteer correctly | Fixed in `captcha-detect.ts` + `captcha-session.ts` (pass `kind`/`token` as evaluate args; reopen target URL before inject) |
-| `402` after payment attempt | Buyer wallet has no Base Sepolia USDC | Fund CDP wallet via faucet or transfer |
+| `402` after payment attempt | Buyer wallet has no Base mainnet USDC | Fund CDP wallet on Base (not Sepolia) |
+| `500` on unpaid `POST /api/solve-captcha` | Invalid `CDP_API_KEY_SECRET` (not a PEM EC API key) | Create API keys at [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/) and run `wrangler secret put CDP_API_KEY_SECRET` with the PEM (real newlines, not `\\n`) |
 | Deploy error `10063` | No `workers.dev` subdomain | Open Workers & Pages in dashboard once, or `PUT /accounts/{id}/workers/subdomain` |
 
 ## API quick reference

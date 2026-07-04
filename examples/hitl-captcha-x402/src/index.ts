@@ -3,8 +3,10 @@ import { paymentMiddleware } from "@x402/hono";
 import { customAlphabet } from "nanoid";
 import { CaptchaSession } from "./captcha-session";
 import {
+  BAZAAR_MCP_URL,
   facilitatorSummary,
   getResourceServer,
+  paymentConfigError,
   solveCaptchaRouteConfig
 } from "./x402-config";
 import type { SolveCaptchaRequest } from "./types";
@@ -46,7 +48,19 @@ app.get("/", (c) => {
     },
     bazaar: {
       discoverable: summary.bazaarDiscovery,
-      docs: "https://docs.cdp.coinbase.com/x402/bazaar"
+      mcp: {
+        endpoint: BAZAAR_MCP_URL,
+        tools: ["search_resources", "proxy_tool_call"],
+        docs: "https://docs.cdp.coinbase.com/x402/bazaar#bazaar-mcp-server"
+      },
+      docs: summary.bazaarDocs
+    },
+    compliance: {
+      facilitator: "https://api.cdp.coinbase.com/platform/v2/x402",
+      discoveryExtension: "declareDiscoveryExtension (@x402/extensions/bazaar)",
+      indexing:
+        "First successful CDP settlement with paymentPayload.resource indexes this endpoint",
+      cdpMcp: "https://docs.cdp.coinbase.com/mcp"
     }
   });
 });
@@ -65,14 +79,9 @@ app.use(async (c, next) => {
   if (c.req.path !== "/api/solve-captcha") {
     return next();
   }
-  if (!c.env.SERVER_ADDRESS) {
-    return c.json(
-      {
-        error:
-          "SERVER_ADDRESS is not configured. Set it with `wrangler secret put SERVER_ADDRESS`."
-      },
-      503
-    );
+  const configError = paymentConfigError(c.env);
+  if (configError) {
+    return c.json({ error: configError }, 503);
   }
 
   const paid = paymentMiddleware(

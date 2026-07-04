@@ -5,18 +5,39 @@ import { x402ResourceServer } from "@x402/hono";
 import { registerExactEvmScheme } from "@x402/evm/exact/server";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 
+export const BASE_MAINNET = "eip155:8453";
+export const BASE_SEPOLIA = "eip155:84532";
+
 const CDP_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform/v2/x402";
 const TESTNET_FACILITATOR_URL = "https://x402.org/facilitator";
+export const BAZAAR_MCP_URL =
+  "https://api.cdp.coinbase.com/platform/v2/x402/discovery/mcp";
 
 let cachedResourceServer: x402ResourceServer | null = null;
 let cachedFacilitatorMode: "cdp" | "testnet" | null = null;
 
+export function paymentNetwork(env: Env): `${string}:${string}` {
+  return (env.X402_NETWORK || BASE_MAINNET) as `${string}:${string}`;
+}
+
+export function requiresCdpFacilitator(env: Env): boolean {
+  return paymentNetwork(env) !== BASE_SEPOLIA;
+}
+
 function facilitatorMode(env: Env): "cdp" | "testnet" {
+  if (requiresCdpFacilitator(env)) {
+    return "cdp";
+  }
   return env.CDP_API_KEY_ID && env.CDP_API_KEY_SECRET ? "cdp" : "testnet";
 }
 
 export function createFacilitatorClient(env: Env): HTTPFacilitatorClient {
   if (facilitatorMode(env) === "cdp") {
+    if (!env.CDP_API_KEY_ID || !env.CDP_API_KEY_SECRET) {
+      throw new Error(
+        "CDP_API_KEY_ID and CDP_API_KEY_SECRET are required for Base mainnet x402 payments and Bazaar discovery."
+      );
+    }
     return new HTTPFacilitatorClient(
       createFacilitatorConfig(env.CDP_API_KEY_ID, env.CDP_API_KEY_SECRET)
     );
@@ -67,7 +88,8 @@ export function solveCaptchaBazaarExtensions() {
       example: {
         sessionId: "abc123xyz",
         status: "awaiting_human",
-        solveUrl: "https://hitl-captcha-x402.example.workers.dev/solve/abc123xyz",
+        solveUrl:
+          "https://hitl-captcha-x402.example.workers.dev/solve/abc123xyz",
         challenge: {
           kind: "hcaptcha",
           siteKey: "a5f74b19-9e45-40e0-b45d-47ff91b7a6c2",
@@ -92,7 +114,7 @@ export function solveCaptchaBazaarExtensions() {
 
 export function solveCaptchaRouteConfig(env: Env): RoutesConfig {
   const price = env.X402_PRICE || "$0.25";
-  const network = (env.X402_NETWORK || "eip155:84532") as `${string}:${string}`;
+  const network = paymentNetwork(env);
 
   return {
     "POST /api/solve-captcha": {
@@ -105,10 +127,18 @@ export function solveCaptchaRouteConfig(env: Env): RoutesConfig {
         }
       ],
       description:
-        "Spin up Browser Rendering, detect a CAPTCHA on the target page, and hand the challenge to a human via mobile solve UI. Returns a session id and solve URL for ntfy handoff.",
+        "Human-in-the-loop CAPTCHA solver for automation agents. Spins up Browser Rendering on the target page, detects Turnstile, reCAPTCHA, or hCaptcha, and hands the challenge to a human via a mobile solve URL and ntfy push notification. Returns session id, solve URL, and challenge metadata for async polling.",
       mimeType: "application/json",
       serviceName: "HITL CAPTCHA Solver",
-      tags: ["captcha", "browser-rendering", "human-in-the-loop", "automation"],
+      tags: [
+        "captcha",
+        "browser-rendering",
+        "human-in-the-loop",
+        "automation",
+        "hcaptcha",
+        "recaptcha",
+        "turnstile"
+      ],
       extensions: {
         ...solveCaptchaBazaarExtensions()
       }
@@ -118,9 +148,24 @@ export function solveCaptchaRouteConfig(env: Env): RoutesConfig {
 
 export function facilitatorSummary(env: Env) {
   const mode = facilitatorMode(env);
+  const network = paymentNetwork(env);
   return {
     url: mode === "cdp" ? CDP_FACILITATOR_URL : TESTNET_FACILITATOR_URL,
     mode,
-    bazaarDiscovery: mode === "cdp"
+    network,
+    networkName: network === BASE_MAINNET ? "base" : "base-sepolia",
+    bazaarDiscovery: mode === "cdp",
+    bazaarMcp: BAZAAR_MCP_URL,
+    bazaarDocs: "https://docs.cdp.coinbase.com/x402/bazaar"
   };
+}
+
+export function paymentConfigError(env: Env): string | null {
+  if (!env.SERVER_ADDRESS) {
+    return "SERVER_ADDRESS is not configured. Set it with `wrangler secret put SERVER_ADDRESS`.";
+  }
+  if (requiresCdpFacilitator(env) && (!env.CDP_API_KEY_ID || !env.CDP_API_KEY_SECRET)) {
+    return "CDP_API_KEY_ID and CDP_API_KEY_SECRET are required for Base mainnet payments and Bazaar discovery indexing.";
+  }
+  return null;
 }
