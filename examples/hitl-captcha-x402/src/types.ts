@@ -76,3 +76,22 @@ export type SessionStatusResponse = {
   result: AuthPayload | null;
   error: string | null;
 };
+
+export type ServiceInfo = {
+  service: string;
+  endpoints: Record<string, string>;
+  payment: {
+    protocol: string;
+    network: string;
+    price: string;
+    facilitator: {
+      url: string;
+      mode: "cdp" | "testnet";
+      bazaarDiscovery: boolean;
+    };
+  };
+  bazaar: {
+    discoverable: boolean;
+    docs: string;
+  };
+};

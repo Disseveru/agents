@@ -1,12 +1,13 @@
 # Human-in-the-Loop CAPTCHA Solver (x402)
 
-A Cloudflare Worker that gates CAPTCHA solving behind [x402](https://x402.org) USDC payments, spins up a headless browser with [Browser Rendering](https://developers.cloudflare.com/browser-run/), notifies your phone via [ntfy.sh](https://ntfy.sh), and hands the challenge to a mobile-friendly solve page.
+A Cloudflare Worker that gates CAPTCHA solving behind [x402](https://docs.cdp.coinbase.com/x402/welcome) USDC payments, spins up a headless browser with [Browser Rendering](https://developers.cloudflare.com/browser-run/), notifies your phone via [ntfy.sh](https://ntfy.sh), and hands the challenge to a mobile-friendly solve page.
 
 ## What it demonstrates
 
-- **x402 payment gating** on `POST /api/solve-captcha` (HTTP 402 until a valid USDC receipt is supplied)
+- **x402 payment gating** on `POST /api/solve-captcha` (HTTP 402 + `PAYMENT-REQUIRED` until a valid USDC receipt is supplied)
+- **CDP facilitator + Bazaar discovery** metadata via `@x402/extensions/bazaar` (see [x402 Bazaar](https://docs.cdp.coinbase.com/x402/bazaar))
 - **Cloudflare Browser Rendering** via `@cloudflare/puppeteer` and the `MYBROWSER` binding
-- **Human handoff** with a durable session, mobile solve UI, and token injection back into the headless browser
+- **Human handoff** with a durable session, server-rendered mobile solve UI, and token injection back into the headless browser
 - **ntfy.sh push** so you can tap a notification on your phone and solve immediately
 
 ## Architecture
@@ -45,14 +46,15 @@ cp .env.example .dev.vars
 
 Set these values in `.dev.vars`:
 
-- `SERVER_ADDRESS` — Ethereum address to receive x402 payments (Base Sepolia testnet: `eip155:84532`)
+- `SERVER_ADDRESS` — Ethereum address to receive x402 payments (Base Sepolia: `eip155:84532`)
 - `NTFY_TOPIC` — ntfy.sh topic you subscribe to on your phone
+- `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` — [CDP API keys](https://docs.cdp.coinbase.com/x402/quickstart-for-sellers) for the recommended facilitator and Bazaar indexing
 
 Then:
 
 ```sh
 pnpm install
-pnpm run dev
+pnpm dev
 ```
 
 Subscribe to your ntfy topic on your phone (ntfy app or `https://ntfy.sh/your-topic`).
@@ -62,8 +64,12 @@ Subscribe to your ntfy topic on your phone (ntfy app or `https://ntfy.sh/your-to
 ```sh
 pnpm run deploy
 wrangler secret put SERVER_ADDRESS
+wrangler secret put CDP_API_KEY_ID
+wrangler secret put CDP_API_KEY_SECRET
 pnpm run deploy --var "NTFY_TOPIC:your-ntfy-topic"
 ```
+
+Without CDP API keys the worker falls back to the signup-free `x402.org` testnet facilitator. **Bazaar discovery indexing requires the CDP facilitator** and at least one successful settlement — see the [Bazaar seller guide](https://docs.cdp.coinbase.com/x402/bazaar#seller-integration).
 
 `wrangler.jsonc` is the canonical config in this monorepo. `wrangler.toml` is included as an equivalent TOML copy.
 
@@ -122,7 +128,11 @@ Response (async mode):
 
 ### `GET /solve/:sessionId`
 
-Mobile solve page. Touch-friendly UI renders the detected widget (Turnstile, reCAPTCHA, or hCaptcha) and posts the token back to the worker.
+Server-rendered mobile solve page. Touch-friendly HTML renders the detected widget (Turnstile, reCAPTCHA, or hCaptcha) and posts the token back to the worker.
+
+### `GET /`
+
+Service metadata, x402 payment settings, and Bazaar discovery status.
 
 ### `GET /api/session/:sessionId/status`
 

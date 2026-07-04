@@ -1,10 +1,10 @@
 # Equivalent TOML configuration for hitl-captcha-x402.
-# The canonical config in this monorepo is wrangler.jsonc; either file works with Wrangler.
+# wrangler.jsonc is canonical in this monorepo.
 
 name = "hitl-captcha-x402"
 main = "src/index.ts"
 compatibility_date = "2026-06-11"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = [ "nodejs_compat" ]
 
 [browser]
 binding = "MYBROWSER"
@@ -16,7 +16,7 @@ class_name = "CaptchaSession"
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["CaptchaSession"]
+new_sqlite_classes = [ "CaptchaSession" ]
 
 [vars]
 NTFY_TOPIC = "hitl-captcha-alerts"

@@ -1,9 +1,12 @@
 import { Hono } from "hono";
-import { HTTPFacilitatorClient } from "@x402/core/server";
-import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
-import { registerExactEvmScheme } from "@x402/evm/exact/server";
+import { paymentMiddleware } from "@x402/hono";
 import { customAlphabet } from "nanoid";
 import { CaptchaSession } from "./captcha-session";
+import {
+  facilitatorSummary,
+  getResourceServer,
+  solveCaptchaRouteConfig
+} from "./x402-config";
 import type { SolveCaptchaRequest } from "./types";
 
 export { CaptchaSession };
@@ -23,15 +26,10 @@ function getSessionStub(env: Env, sessionId: string): DurableObjectStub {
   return env.CAPTCHA_SESSION.get(id);
 }
 
-const facilitatorClient = new HTTPFacilitatorClient({
-  url: "https://x402.org/facilitator"
-});
-const resourceServer = new x402ResourceServer(facilitatorClient);
-registerExactEvmScheme(resourceServer);
-
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/", (c) => {
+  const summary = facilitatorSummary(c.env);
   return c.json({
     service: "hitl-captcha-x402",
     endpoints: {
@@ -43,7 +41,12 @@ app.get("/", (c) => {
     payment: {
       protocol: "x402",
       network: c.env.X402_NETWORK,
-      price: c.env.X402_PRICE
+      price: c.env.X402_PRICE,
+      facilitator: summary
+    },
+    bazaar: {
+      discoverable: summary.bazaarDiscovery,
+      docs: "https://docs.cdp.coinbase.com/x402/bazaar"
     }
   });
 });
@@ -71,25 +74,10 @@ app.use(async (c, next) => {
       503
     );
   }
-  const price = c.env.X402_PRICE || "$0.25";
-  const network = c.env.X402_NETWORK || "eip155:84532";
+
   const paid = paymentMiddleware(
-    {
-      "POST /api/solve-captcha": {
-        accepts: [
-          {
-            scheme: "exact",
-            price,
-            network,
-            payTo: c.env.SERVER_ADDRESS as `0x${string}`
-          }
-        ],
-        description:
-          "Human-in-the-loop CAPTCHA solve using Cloudflare Browser Rendering",
-        mimeType: "application/json"
-      }
-    },
-    resourceServer
+    solveCaptchaRouteConfig(c.env),
+    getResourceServer(c.env)
   );
   return paid(c, next);
 });

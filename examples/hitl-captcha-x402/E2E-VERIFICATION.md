@@ -26,6 +26,28 @@ pnpm run deploy --var "NTFY_TOPIC:your-ntfy-topic"
 
 `NTFY_TOPIC` is passed at deploy time so your personal topic stays out of git.
 `SERVER_ADDRESS` must be a wrangler secret (never commit it).
+`CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` are required for the [CDP facilitator](https://docs.cdp.coinbase.com/x402/quickstart-for-sellers) and [x402 Bazaar](https://docs.cdp.coinbase.com/x402/bazaar) discovery indexing.
+
+## x402 / Bazaar compliance checklist
+
+This example follows the [x402 welcome guide](https://docs.cdp.coinbase.com/x402/welcome) and [Bazaar seller integration](https://docs.cdp.coinbase.com/x402/bazaar#seller-integration):
+
+| Requirement | Implementation |
+|-------------|----------------|
+| HTTP 402 + `PAYMENT-REQUIRED` on unpaid calls | `@x402/hono` `paymentMiddleware` on `POST /api/solve-captcha` |
+| `PAYMENT-SIGNATURE` / `X-PAYMENT` on retry | Buyer clients (e.g. `scripts/pay-and-solve.sh`, CDP CLI) |
+| CAIP-2 network id (`eip155:84532`) | `X402_NETWORK` var |
+| CDP facilitator verify/settle | `CDP_API_KEY_*` secrets → `@coinbase/x402` `createFacilitatorConfig` |
+| Bazaar `declareDiscoveryExtension` | `src/x402-config.ts` — input schema + example body for crawl |
+| `mimeType` + `description` on route | `application/json` + human-readable solve description |
+| `paymentPayload.resource` on settle | Handled by `@x402/hono` when using CDP facilitator |
+| Mobile solve UI | Server-rendered HTML at `/solve/:sessionId` (`src/mobile-ui.ts`) |
+
+Bazaar indexing happens after the **first successful CDP settlement** for the endpoint. Search the catalog with:
+
+```sh
+curl "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=captcha&resource=hitl-captcha"
+```
 
 ## Prerequisites
 
