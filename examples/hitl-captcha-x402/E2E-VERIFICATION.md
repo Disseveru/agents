@@ -164,16 +164,11 @@ A real image challenge was completed on a Moto G via the ntfy handoff link.
 | Widget | Real reCAPTCHA v2 (`siteKey: 6Le-wvkSAAAAAPBMRTvw0Q4Muexq9bi0DJwx_mJ-`) |
 | Paid session | `0gzuyn6b4d4p1mml` |
 | Solve UI | `https://hitl-captcha-x402.chchaman474.workers.dev/solve/0gzuyn6b4d4p1mml` |
-| Mobile solve + inject | Pending — complete the checkbox/image challenge on your phone |
+| Mobile solve + inject | **OK** — status `solved` |
+| Final URL | `https://www.google.com/recaptcha/api2/demo` |
 
 This uses the **official Google reCAPTCHA v2 demo** — the classic "I'm not a robot" widget.
-Tap the ntfy alert **"CAPTCHA needs your attention"**, solve the challenge, then poll:
-
-```sh
-curl "https://hitl-captcha-x402.chchaman474.workers.dev/api/session/0gzuyn6b4d4p1mml/status"
-```
-
-Expected after solve: `status: solved` with cookies from the demo page.
+Completed via ntfy handoff on Moto G; token injected back into Browser Rendering.
 
 ## Troubleshooting
 
