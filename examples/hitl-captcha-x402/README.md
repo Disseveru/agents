@@ -62,9 +62,30 @@ Subscribe to your ntfy topic on your phone (ntfy app or `https://ntfy.sh/your-to
 ```sh
 pnpm run deploy
 wrangler secret put SERVER_ADDRESS
+pnpm run deploy --var "NTFY_TOPIC:your-ntfy-topic"
 ```
 
 `wrangler.jsonc` is the canonical config in this monorepo. `wrangler.toml` is included as an equivalent TOML copy.
+
+Pass `NTFY_TOPIC` at deploy time (or set in `wrangler.jsonc` vars for local dev) so your phone topic does not need to be committed.
+
+## End-to-end verification
+
+See **[E2E-VERIFICATION.md](./E2E-VERIFICATION.md)** for the full live proof checklist:
+
+- Deploy + ntfy phone setup
+- x402 payment via [CDP CLI](https://docs.cdp.coinbase.com/get-started/build-with-ai/cdp-cli/quickstart) (`scripts/pay-and-solve.sh`)
+- Real CAPTCHA targets (hCaptcha / reCAPTCHA demos — not Turnstile test keys)
+- Troubleshooting (failed injection, 402, workers.dev subdomain)
+- Verified session results
+
+Quick paid trigger:
+
+```sh
+export CDP_KEY_ID=... CDP_KEY_SECRET=... CDP_WALLET_SECRET=...
+chmod +x scripts/pay-and-solve.sh
+./scripts/pay-and-solve.sh https://your-worker.workers.dev https://accounts.hcaptcha.com/demo
+```
 
 ## API
 
