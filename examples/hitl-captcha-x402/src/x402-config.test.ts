@@ -33,12 +33,15 @@ describe("x402-config", () => {
 
   it("builds a paid route config with mimeType, tags, and Bazaar extensions", () => {
     const config = solveCaptchaRouteConfig(makeEnv());
-    const route = config["POST /api/solve-captcha"];
+    const route = Object.values(config)[0]!;
 
     expect(route.mimeType).toBe("application/json");
     expect(route.tags).toContain("captcha");
     expect(route.extensions?.bazaar).toBeDefined();
-    expect(route.accepts[0]?.network).toBe("eip155:84532");
+    const accepts = Array.isArray(route.accepts)
+      ? route.accepts
+      : [route.accepts];
+    expect(accepts[0]?.network).toBe("eip155:84532");
   });
 
   it("uses the CDP facilitator when API keys are configured", () => {

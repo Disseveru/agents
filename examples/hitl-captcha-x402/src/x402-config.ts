@@ -1,4 +1,5 @@
 import { createFacilitatorConfig } from "@coinbase/x402";
+import type { RoutesConfig } from "@x402/core/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { x402ResourceServer } from "@x402/hono";
 import { registerExactEvmScheme } from "@x402/evm/exact/server";
@@ -89,9 +90,9 @@ export function solveCaptchaBazaarExtensions() {
   });
 }
 
-export function solveCaptchaRouteConfig(env: Env) {
+export function solveCaptchaRouteConfig(env: Env): RoutesConfig {
   const price = env.X402_PRICE || "$0.25";
-  const network = env.X402_NETWORK || "eip155:84532";
+  const network = (env.X402_NETWORK || "eip155:84532") as `${string}:${string}`;
 
   return {
     "POST /api/solve-captcha": {
@@ -112,7 +113,7 @@ export function solveCaptchaRouteConfig(env: Env) {
         ...solveCaptchaBazaarExtensions()
       }
     }
-  } as const;
+  };
 }
 
 export function facilitatorSummary(env: Env) {
