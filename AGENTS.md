@@ -49,6 +49,69 @@ Some directories have their own AGENTS.md with deeper guidance:
 | `docs/AGENTS.md`            | Writing user-facing docs — Diátaxis framework, upstream sync, style       |
 | `design/AGENTS.md`          | Design records and RFCs — format, workflow, relationship to docs          |
 
+## ReAct reasoning for cloud agents
+
+Cloud agents (Cursor, CI bots, and other autonomous coding agents) working in this repo should follow the **ReAct** pattern from [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) (Yao et al., 2022). This is **Reasoning + Acting** — not the React.js UI framework.
+
+ReAct interleaves **Thought → Action → Observation** so the agent grounds each step in evidence instead of guessing. Use it on every non-trivial task.
+
+### Loop
+
+1. **Thought** — State what you know, what is unknown, and the smallest next step. Read nested `AGENTS.md` files when entering a new directory.
+2. **Action** — Execute one concrete tool call (read a file, run a command, edit code, deploy). Prefer the narrowest action that can produce an observation.
+3. **Observation** — Read the tool result. Update your mental model. Decide the next thought.
+4. Repeat until the task is done, then verify (usually `pnpm run check` and affected tests).
+
+Do not batch many actions without observing between them when debugging or exploring unfamiliar code.
+
+### Action catalog in this repo
+
+| Goal | Typical actions | Observation to read |
+|------|-----------------|----------------------|
+| Find code | `Grep`, `Glob`, `Read` | File paths, signatures, call sites |
+| Understand architecture | `Read` nested `AGENTS.md`, `design/*.md` | Boundaries, exports, test layers |
+| Change a package | `Read` → edit → `pnpm exec nx affected -t build` | Build errors, type errors |
+| Change an example | `Read` `examples/AGENTS.md` → edit → `pnpm run check` in example | Lint/type/test output |
+| Prove behavior | `pnpm run test`, `pnpm exec nx affected -t test` | Pass/fail summary (ignore noisy recovery logs) |
+| Deploy a Worker | `wrangler deploy`, `curl` health check | HTTP status, JSON body, wrangler errors |
+| Debug runtime | Read logs, `curl` API, reproduce in shell | Status codes, stack traces, session state |
+
+### Repo-specific ReAct habits
+
+- **Scope first.** Read the relevant nested `AGENTS.md` (`packages/agents/`, `examples/`, `docs/`, etc.) before editing. Packages need changesets; examples do not.
+- **Verify before done.** Thought: "Changes compile and pass CI gates." Action: `pnpm run check` (+ affected tests). Observation: exit code and failure details.
+- **Secrets never in git.** Thought: "This needs a credential." Action: `wrangler secret put` or env vars. Observation: deploy succeeds without committing keys.
+- **Human-in-the-loop.** When a task needs a human (CAPTCHA, approval, dashboard click), act to produce a handoff URL or clear instruction, then poll or wait — do not pretend the step succeeded.
+- **Minimize diff.** Thought: "What is the smallest correct fix?" Action: focused edit. Observation: tests pass without unrelated refactors.
+
+### Example trace (fix a failing test)
+
+```
+Thought 1: The user reports a vitest failure in packages/agents. I need the exact test name and error.
+Action 1: Run affected tests or read the CI log.
+Observation 1: scheduling.test.ts — expected cron next run to be 2026-07-05, got 2026-07-04.
+
+Thought 2: Likely a timezone or DST edge in schedule.ts. I should read the test and implementation.
+Action 2: Read packages/agents/src/tests/scheduling.test.ts and schedule helpers.
+Observation 2: Test uses local midnight; implementation uses UTC.
+
+Thought 3: Fix by aligning test input to UTC. Smallest change is in the test fixture.
+Action 3: Edit the test file.
+Observation 3: File saved.
+
+Thought 4: Prove the fix.
+Action 4: pnpm exec nx run agents:test
+Observation 4: All tests passed.
+
+Thought 5: Run full check before PR.
+Action 5: pnpm run check
+Observation 5: Exit 0. Done.
+```
+
+### When to ask the user
+
+ReAct does not mean silent autonomy. **Ask** when: requirements are ambiguous, a change needs new `packages/` dependencies, compatibility dates would change repo-wide, or you need credentials only the user can provide.
+
 ## Setup
 
 ```bash

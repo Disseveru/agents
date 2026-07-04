@@ -33,6 +33,7 @@ allowBuilds:
   "@openrouter/sdk": false
   # agent-think's unit tests mock GitHub over MSW; its postinstall is not needed.
   msw: false
+  '@coinbase/x402': true
 minimumReleaseAgeExclude:
   - "@cloudflare/*"
   - "@typescript/*"
