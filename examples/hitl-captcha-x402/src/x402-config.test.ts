@@ -7,12 +7,12 @@ import {
 } from "./x402-config";
 function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
-    NTFY_TOPIC: "topic",
+    NTFY_TOPIC: "hitl-captcha-alerts",
     X402_NETWORK: "eip155:84532",
     X402_PRICE: "$0.25",
     SESSION_TTL_SECONDS: "900",
-    MYBROWSER: {} as Fetcher,
-    CAPTCHA_SESSION: {} as DurableObjectNamespace,
+    MYBROWSER: {} as BrowserRun,
+    CAPTCHA_SESSION: {} as Env["CAPTCHA_SESSION"],
     SERVER_ADDRESS: "0x1234567890123456789012345678901234567890",
     ...overrides
   };
