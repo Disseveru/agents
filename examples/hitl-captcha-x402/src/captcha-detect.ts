@@ -1,7 +1,10 @@
 import type { CaptchaChallenge, CaptchaKind } from "./types";
 
 type FrameLike = {
-  evaluate<T>(pageFunction: () => T | Promise<T>): Promise<T>;
+  evaluate(
+    pageFunction: string | ((...args: unknown[]) => unknown),
+    ...args: unknown[]
+  ): Promise<unknown>;
   $?(selector: string): Promise<unknown>;
 };
 
@@ -22,14 +25,18 @@ type DetectedCaptcha = {
   extra: CaptchaChallenge["extra"];
 };
 
-async function evaluateInFrames<T>(
+async function evaluateInFrames<T, Args extends readonly unknown[]>(
   page: PageLike,
-  fn: () => T | Promise<T>
+  fn: (...args: Args) => T | Promise<T>,
+  ...args: Args
 ): Promise<T> {
   const frames = [page, ...page.frames()];
   for (const frame of frames) {
     try {
-      return await frame.evaluate(fn);
+      return (await frame.evaluate(
+        fn as unknown as (...args: unknown[]) => unknown,
+        ...args
+      )) as T;
     } catch {
       // Try the next frame when cross-origin blocks evaluation.
     }
@@ -40,7 +47,7 @@ async function evaluateInFrames<T>(
 async function detectInFrame(
   frame: FrameLike
 ): Promise<DetectedCaptcha | null> {
-  return frame.evaluate(() => {
+  return (await frame.evaluate(() => {
     const turnstile = document.querySelector<HTMLElement>(
       ".cf-turnstile, [data-sitekey].cf-turnstile, iframe[src*='challenges.cloudflare.com']"
     );
@@ -125,7 +132,7 @@ async function detectInFrame(
     }
 
     return null;
-  });
+  })) as DetectedCaptcha | null;
 }
 
 export async function detectCaptcha(page: PageLike): Promise<CaptchaChallenge> {
@@ -174,55 +181,64 @@ export async function detectCaptcha(page: PageLike): Promise<CaptchaChallenge> {
   };
 }
 
+type InjectCaptchaArgs = {
+  kind: CaptchaKind;
+  token: string;
+};
+
 export async function injectCaptchaToken(
   page: PageLike,
   kind: CaptchaKind,
   token: string
 ): Promise<void> {
-  await evaluateInFrames(page, () => {
-    const setValue = (selector: string, value: string) => {
-      const nodes = Array.from(
-        document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-          selector
-        )
+  await evaluateInFrames(
+    page,
+    ({ kind: captchaKind, token: captchaToken }: InjectCaptchaArgs) => {
+      const setValue = (selector: string, value: string) => {
+        const nodes = Array.from(
+          document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+            selector
+          )
+        );
+        for (const node of nodes) {
+          node.value = value;
+          node.dispatchEvent(new Event("input", { bubbles: true }));
+          node.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      };
+
+      if (captchaKind === "turnstile") {
+        setValue('[name="cf-turnstile-response"]', captchaToken);
+        setValue('[name="g-recaptcha-response"]', captchaToken);
+      } else if (captchaKind === "hcaptcha") {
+        setValue('[name="h-captcha-response"]', captchaToken);
+        setValue('[name="g-recaptcha-response"]', captchaToken);
+      } else {
+        setValue('[name="g-recaptcha-response"]', captchaToken);
+        setValue("#g-recaptcha-response", captchaToken);
+        setValue("textarea#g-recaptcha-response", captchaToken);
+      }
+
+      const callbackNames = new Set<string>();
+      const widgets = document.querySelectorAll<HTMLElement>(
+        ".g-recaptcha, .h-captcha, .cf-turnstile, [data-callback]"
       );
-      for (const node of nodes) {
-        node.value = value;
-        node.dispatchEvent(new Event("input", { bubbles: true }));
-        node.dispatchEvent(new Event("change", { bubbles: true }));
+      for (const widget of widgets) {
+        const callback = widget.getAttribute("data-callback");
+        if (callback) {
+          callbackNames.add(callback);
+        }
       }
-    };
 
-    if (kind === "turnstile") {
-      setValue('[name="cf-turnstile-response"]', token);
-      setValue('[name="g-recaptcha-response"]', token);
-    } else if (kind === "hcaptcha") {
-      setValue('[name="h-captcha-response"]', token);
-      setValue('[name="g-recaptcha-response"]', token);
-    } else {
-      setValue('[name="g-recaptcha-response"]', token);
-      setValue("#g-recaptcha-response", token);
-      setValue("textarea#g-recaptcha-response", token);
-    }
-
-    const callbackNames = new Set<string>();
-    const widgets = document.querySelectorAll<HTMLElement>(
-      ".g-recaptcha, .h-captcha, .cf-turnstile, [data-callback]"
-    );
-    for (const widget of widgets) {
-      const callback = widget.getAttribute("data-callback");
-      if (callback) {
-        callbackNames.add(callback);
+      for (const callbackName of callbackNames) {
+        const callback = (globalThis as Record<string, unknown>)[callbackName];
+        if (typeof callback === "function") {
+          (callback as (response: string) => void)(captchaToken);
+        }
       }
-    }
-
-    for (const callbackName of callbackNames) {
-      const callback = (globalThis as Record<string, unknown>)[callbackName];
-      if (typeof callback === "function") {
-        (callback as (response: string) => void)(token);
-      }
-    }
-  });
+    },
+    { kind, token }
+  );
 
   await evaluateInFrames(page, () => {
     const form = document.querySelector<HTMLFormElement>("form");

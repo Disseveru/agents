@@ -46,7 +46,10 @@ function makeFakeDocument(options: {
 
 function makeFrame(overrides: Record<string, unknown> = {}): FrameParam {
   return {
-    evaluate: vi.fn(async (fn: () => unknown) => fn()),
+    evaluate: vi.fn(
+      async (fn: (...args: unknown[]) => unknown, ...args: unknown[]) =>
+        fn(...args)
+    ),
     ...overrides
   } as unknown as FrameParam;
 }
@@ -58,7 +61,10 @@ function makePage(overrides: Record<string, unknown> = {}): PageParam {
     screenshot: async () => "ZmFrZXNjcmVlbnNob3Q=",
     frames: () => [],
     goto: vi.fn(async () => undefined),
-    evaluate: vi.fn(async (fn: () => unknown) => fn()),
+    evaluate: vi.fn(
+      async (fn: (...args: unknown[]) => unknown, ...args: unknown[]) =>
+        fn(...args)
+    ),
     ...overrides
   } as unknown as PageParam;
 }
@@ -365,6 +371,29 @@ describe("injectCaptchaToken", () => {
 
     await expect(injectCaptchaToken(page, "turnstile", "token")).rejects.toThrow(
       "Unable to evaluate script in any frame"
+    );
+  });
+
+  it("passes kind and token into the browser evaluate call", async () => {
+    const evaluate = vi.fn(
+      async (fn: (...args: unknown[]) => unknown, ...args: unknown[]) =>
+        fn(...args)
+    );
+    vi.stubGlobal(
+      "document",
+      makeFakeDocument({
+        selectorAll: {
+          '[name="cf-turnstile-response"]': [makeElement()],
+          '[name="g-recaptcha-response"]': [makeElement()]
+        }
+      })
+    );
+
+    await injectCaptchaToken(makePage({ evaluate }), "turnstile", "the-token");
+
+    expect(evaluate).toHaveBeenCalledWith(
+      expect.any(Function),
+      { kind: "turnstile", token: "the-token" }
     );
   });
 });

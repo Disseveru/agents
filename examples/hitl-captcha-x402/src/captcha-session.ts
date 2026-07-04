@@ -16,6 +16,7 @@ import type {
 const STORAGE_KEY = "session";
 
 type BrowserHandle = Awaited<ReturnType<typeof puppeteer.launch>>;
+type BrowserPage = Awaited<ReturnType<BrowserHandle["pages"]>>[number];
 
 type StoredSession = SessionRecord & {
   browserSessionId: string | null;
@@ -158,6 +159,40 @@ export class CaptchaSession implements DurableObject {
     return this.#browser;
   }
 
+  private async getActivePage(
+    browser: BrowserHandle,
+    targetUrl: string
+  ): Promise<BrowserPage> {
+    const pages = await browser.pages();
+    let page = pages.at(-1);
+    if (!page) {
+      page = await browser.newPage();
+    }
+
+    const current = page.url();
+    let needsNavigation =
+      !current || current === "about:blank" || !current.startsWith("http");
+
+    if (!needsNavigation) {
+      try {
+        needsNavigation =
+          new URL(current).origin !== new URL(targetUrl).origin;
+      } catch {
+        needsNavigation = true;
+      }
+    }
+
+    if (needsNavigation) {
+      await page.goto(targetUrl, {
+        waitUntil: "networkidle2",
+        timeout: 60_000
+      });
+      await page.waitForNetworkIdle({ timeout: 15_000 }).catch(() => {});
+    }
+
+    return page;
+  }
+
   private async closeBrowser(): Promise<void> {
     if (!this.#browser) {
       return;
@@ -269,11 +304,7 @@ export class CaptchaSession implements DurableObject {
 
     try {
       const browser = await this.getBrowser();
-      const pages = await browser.pages();
-      const page = pages.at(-1);
-      if (!page) {
-        throw new Error("No browser page is available for token injection");
-      }
+      const page = await this.getActivePage(browser, session.targetUrl);
 
       const kind = session.challenge?.kind ?? "unknown";
       if (token !== "manual-confirmation") {
