@@ -46,7 +46,7 @@ cp .env.example .dev.vars
 
 Set these values in `.dev.vars`:
 
-- `SERVER_ADDRESS` — Ethereum address to receive x402 USDC payments on **Base mainnet** (`eip155:8453`)
+- `SERVER_ADDRESS` — **legacy external wallet** to receive x402 USDC on Base mainnet (`eip155:8453`). Do not replace with a newly created CDP server wallet.
 - `NTFY_TOPIC` — ntfy.sh topic you subscribe to on your phone
 - `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` — **required** [CDP API keys](https://docs.cdp.coinbase.com/x402/quickstart-for-sellers) for Base mainnet verify/settle and [Bazaar](https://docs.cdp.coinbase.com/x402/bazaar) discovery indexing
 
@@ -74,6 +74,18 @@ Without CDP API keys the worker cannot accept Base mainnet payments. For local t
 `wrangler.jsonc` is the canonical config in this monorepo. `wrangler.toml` is included as an equivalent TOML copy.
 
 Pass `NTFY_TOPIC` at deploy time (or set in `wrangler.jsonc` vars for local dev) so your phone topic does not need to be committed.
+
+### CDP secrets (from Cloud Agents dashboard)
+
+Reuse existing dashboard credentials — do not create new wallets or API keys:
+
+```sh
+chmod +x scripts/setup-cdp-secrets.sh
+export CDP_KEY_ID=... CDP_KEY_SECRET=... SERVER_ADDRESS=... NTFY_TOPIC=...
+./scripts/setup-cdp-secrets.sh
+```
+
+This converts the portal PEM to PKCS#8 and uploads `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, and `SERVER_ADDRESS` to the worker.
 
 ## End-to-end verification
 

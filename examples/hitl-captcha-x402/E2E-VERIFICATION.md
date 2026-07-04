@@ -20,9 +20,9 @@ Deploy from this example directory:
 ```sh
 cd examples/hitl-captcha-x402
 pnpm install
-wrangler secret put SERVER_ADDRESS   # Base mainnet address to receive USDC
+wrangler secret put SERVER_ADDRESS   # legacy external wallet — do NOT create a new CDP wallet
 wrangler secret put CDP_API_KEY_ID
-wrangler secret put CDP_API_KEY_SECRET
+wrangler secret put CDP_API_KEY_SECRET   # must be PKCS#8; use scripts/setup-cdp-secrets.sh
 pnpm run deploy --var "NTFY_TOPIC:your-ntfy-topic"
 ```
 
@@ -204,7 +204,7 @@ Completed via ntfy handoff on Moto G; token injected back into Browser Rendering
 | ntfy opens worker homepage only | Manual test ping, not a real solve | Wait for **"CAPTCHA needs your attention"** alert after paid API call |
 | Status `failed` — "Unable to evaluate script in any frame" | Headless page lost after DO sleep; token not passed to Puppeteer correctly | Fixed in `captcha-detect.ts` + `captcha-session.ts` (pass `kind`/`token` as evaluate args; reopen target URL before inject) |
 | `402` after payment attempt | Buyer wallet has no Base mainnet USDC | Fund CDP wallet on Base (not Sepolia) |
-| `500` on unpaid `POST /api/solve-captcha` | Invalid `CDP_API_KEY_SECRET` (not a PEM EC API key) | Create API keys at [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/) and run `wrangler secret put CDP_API_KEY_SECRET` with the PEM (real newlines, not `\\n`) |
+| `500` on unpaid `POST /api/solve-captcha` | Invalid `CDP_API_KEY_SECRET` (EC PEM, not PKCS#8) | Run `scripts/setup-cdp-secrets.sh` — converts `BEGIN EC PRIVATE KEY` to PKCS#8 before upload |
 | Deploy error `10063` | No `workers.dev` subdomain | Open Workers & Pages in dashboard once, or `PUT /accounts/{id}/workers/subdomain` |
 
 ## API quick reference
