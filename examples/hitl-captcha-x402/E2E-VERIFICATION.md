@@ -156,6 +156,25 @@ curl "https://hitl-captcha-x402.your-subdomain.workers.dev/api/session/abc123xyz
 This uses the **official hCaptcha demo** — not Turnstile test keys that always pass.
 A real image challenge was completed on a Moto G via the ntfy handoff link.
 
+### Phase 3 — Real reCAPTCHA v2 demo (production widget)
+
+| Step | Result |
+|------|--------|
+| Target | `https://www.google.com/recaptcha/api2/demo` |
+| Widget | Real reCAPTCHA v2 (`siteKey: 6Le-wvkSAAAAAPBMRTvw0Q4Muexq9bi0DJwx_mJ-`) |
+| Paid session | `0gzuyn6b4d4p1mml` |
+| Solve UI | `https://hitl-captcha-x402.chchaman474.workers.dev/solve/0gzuyn6b4d4p1mml` |
+| Mobile solve + inject | Pending — complete the checkbox/image challenge on your phone |
+
+This uses the **official Google reCAPTCHA v2 demo** — the classic "I'm not a robot" widget.
+Tap the ntfy alert **"CAPTCHA needs your attention"**, solve the challenge, then poll:
+
+```sh
+curl "https://hitl-captcha-x402.chchaman474.workers.dev/api/session/0gzuyn6b4d4p1mml/status"
+```
+
+Expected after solve: `status: solved` with cookies from the demo page.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |

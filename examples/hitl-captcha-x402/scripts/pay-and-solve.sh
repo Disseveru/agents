@@ -19,6 +19,13 @@ ENDPOINT="${WORKER%/}/api/solve-captcha"
 
 export CDP_URL="${CDP_URL:-https://api.cdp.coinbase.com/platform/v2}"
 
+# Cloud env vars often store PEM newlines as literal \n — CDP CLI needs real newlines.
+if [[ -n "${CDP_KEY_SECRET:-}" ]]; then
+  export CDP_KEY_SECRET="$(printf '%b' "$CDP_KEY_SECRET")"
+elif [[ -n "${CDP_PRIVATE_KEY:-}" ]]; then
+  export CDP_KEY_SECRET="$(printf '%b' "$CDP_PRIVATE_KEY")"
+fi
+
 command -v cdp >/dev/null || { echo "Install: npm install -g @coinbase/cdp-cli"; exit 1; }
 command -v jq >/dev/null || { echo "Install: jq"; exit 1; }
 
