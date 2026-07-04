@@ -149,10 +149,12 @@ curl "https://hitl-captcha-x402.your-subdomain.workers.dev/api/session/abc123xyz
 | Widget | Real hCaptcha (`siteKey: a5f74b19-9e45-40e0-b45d-47ff91b7a6c2`) |
 | Paid session | `gdb9mg2lrmj9scp1` |
 | Solve UI | `https://hitl-captcha-x402.chchaman474.workers.dev/solve/gdb9mg2lrmj9scp1` |
-| Expected after solve | `status: solved` with cookies/storage from hCaptcha demo |
+| Mobile solve + inject | **OK** — status `solved` |
+| Final URL | `https://accounts.hcaptcha.com/demo` |
+| Cookies captured | 2 (`__cf_bm`, `__cflb` on `.hcaptcha.com` / `accounts.hcaptcha.com`) |
 
 This uses the **official hCaptcha demo** — not Turnstile test keys that always pass.
-You must complete a real image challenge on your phone.
+A real image challenge was completed on a Moto G via the ntfy handoff link.
 
 ## Troubleshooting
 
