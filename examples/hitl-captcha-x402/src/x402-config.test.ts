@@ -17,7 +17,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
     NTFY_TOPIC: "hitl-captcha-alerts",
     X402_NETWORK: BASE_MAINNET,
-    X402_PRICE: "$0.25",
+    X402_PRICE: "$0.0001",
     SESSION_TTL_SECONDS: "900",
     MYBROWSER: {} as BrowserRun,
     CAPTCHA_SESSION: {} as Env["CAPTCHA_SESSION"],

@@ -113,7 +113,7 @@ export function solveCaptchaBazaarExtensions() {
 }
 
 export function solveCaptchaRouteConfig(env: Env): RoutesConfig {
-  const price = env.X402_PRICE || "$0.25";
+  const price = env.X402_PRICE || "$0.0001";
   const network = paymentNetwork(env);
 
   return {

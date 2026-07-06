@@ -11,7 +11,7 @@ handoff to token injection back into Browser Rendering.
 | Worker name | `hitl-captcha-x402` |
 | Live URL | `https://hitl-captcha-x402.<your-subdomain>.workers.dev` |
 | Payment network | **Base mainnet** (`eip155:8453`) — testnet verified on Sepolia (`eip155:84532`) |
-| Price per solve | `$0.25` USDC |
+| Price per solve | `$0.0001` USDC |
 | Browser binding | `MYBROWSER` (Browser Rendering) |
 | Session store | `CaptchaSession` Durable Object |
 
