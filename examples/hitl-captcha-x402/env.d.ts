@@ -4,7 +4,7 @@ interface __BaseEnv_Env {
 	MYBROWSER: BrowserRun;
 	NTFY_TOPIC: "hitl-captcha-alerts";
 	X402_NETWORK: "eip155:8453";
-	X402_PRICE: "$0.0001";
+	X402_PRICE: "$0.25";
 	SESSION_TTL_SECONDS: "900";
 	CAPTCHA_SESSION: DurableObjectNamespace<import("./src/index").CaptchaSession>;
 }
