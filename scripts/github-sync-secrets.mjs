@@ -52,6 +52,7 @@ function gh(args, { env = {}, input } = {}) {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: "pipe",
+    timeout: 60_000,
     input,
     env: {
       ...process.env,
