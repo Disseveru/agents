@@ -20,6 +20,7 @@
     "typecheck": "tsx scripts/typecheck.ts",
     "check:exports": "tsx scripts/check-exports.ts",
     "check": "sherif && pnpm run check:exports && oxfmt --check . && oxlint . && pnpm run typecheck",
+    "github:sync-secrets": "node scripts/github-sync-secrets.mjs",
     "test": "nx run-many -t test",
     "ci": "oxfmt --write . && nx run-many -t build test && pnpm run check",
     "test:e2e": "nx run-many -t test:e2e --parallel=1",

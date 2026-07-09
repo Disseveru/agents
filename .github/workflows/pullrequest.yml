@@ -1,6 +1,12 @@
 name: Pull Request
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "design/**"
+      - "*.md"
+      - ".changeset/**"
   pull_request:
     paths-ignore:
       - "design/**"
@@ -8,7 +14,7 @@ on:
       - ".changeset/**"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 env:
