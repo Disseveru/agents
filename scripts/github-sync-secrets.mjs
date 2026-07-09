@@ -55,8 +55,8 @@ function gh(args, { env = {} } = {}) {
     env: {
       ...process.env,
       ...(token ? { GH_TOKEN: token, GITHUB_TOKEN: token } : {}),
-      ...env,
-    },
+      ...env
+    }
   });
   return result;
 }
@@ -68,13 +68,15 @@ function canManageSecrets(repo) {
 
 function setSecret(repo, name, value) {
   if (dryRun) {
-    console.log(`  [dry-run] secret ${name}: would set (${value.length} chars)`);
+    console.log(
+      `  [dry-run] secret ${name}: would set (${value.length} chars)`
+    );
     return true;
   }
   const result = gh(["secret", "set", name, "--repo", repo, "--body", value]);
   if (result.status !== 0) {
     console.error(
-      `  secret ${name}: FAILED — ${(result.stderr || result.stdout || "").trim()}`,
+      `  secret ${name}: FAILED — ${(result.stderr || result.stdout || "").trim()}`
     );
     return false;
   }
@@ -92,10 +94,10 @@ async function main() {
 
   if (!canManageSecrets(repo)) {
     console.error(
-      "Cannot manage GitHub secrets with the current token (403). Add GITHUB_PAT to Cursor Cloud secrets",
+      "Cannot manage GitHub secrets with the current token (403). Add GITHUB_PAT to Cursor Cloud secrets"
     );
     console.error(
-      "with repo admin scope, or run locally: gh auth login && pnpm run github:sync-secrets -- --apply",
+      "with repo admin scope, or run locally: gh auth login && pnpm run github:sync-secrets -- --apply"
     );
     process.exit(1);
   }
