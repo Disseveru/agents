@@ -46,12 +46,13 @@ function getGithubToken() {
   );
 }
 
-function gh(args, { env = {} } = {}) {
+function gh(args, { env = {}, input } = {}) {
   const token = getGithubToken();
   const result = spawnSync("gh", args, {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: "pipe",
+    input,
     env: {
       ...process.env,
       ...(token ? { GH_TOKEN: token, GITHUB_TOKEN: token } : {}),
@@ -73,7 +74,7 @@ function setSecret(repo, name, value) {
     );
     return true;
   }
-  const result = gh(["secret", "set", name, "--repo", repo, "--body", value]);
+  const result = gh(["secret", "set", name, "--repo", repo], { input: value });
   if (result.status !== 0) {
     console.error(
       `  secret ${name}: FAILED — ${(result.stderr || result.stdout || "").trim()}`
