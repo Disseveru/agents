@@ -257,14 +257,21 @@ export class CaptchaSession implements DurableObject {
       await this.updateStatus("awaiting_human", { challenge });
 
       const topic = this.env.NTFY_TOPIC;
-      await sendNtfyAlert({
-        topic,
-        title: "CAPTCHA needs your attention",
-        message: `Tap to solve the ${challenge.kind} challenge for ${input.url}`,
-        clickUrl: solveUrl,
-        tags: ["warning", "robot", "key"],
-        priority: 5
-      });
+      try {
+        await sendNtfyAlert({
+          topic,
+          title: "CAPTCHA needs your attention",
+          message: `Tap to solve the ${challenge.kind} challenge for ${input.url}`,
+          clickUrl: solveUrl,
+          tags: ["warning", "robot", "key"],
+          priority: 5
+        });
+      } catch (error) {
+        console.warn(
+          "ntfy alert failed; session still active at solve URL",
+          error instanceof Error ? error.message : error
+        );
+      }
 
       return json({
         sessionId: input.sessionId,

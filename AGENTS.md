@@ -232,6 +232,10 @@ CI runs on every PR (`pnpm install --frozen-lockfile && pnpm run build && pnpm r
 
 - Keep `Workspace` as a pure durable filesystem — do not embed execution or session logic inside it. Execution is a caller concern wired via `@cloudflare/codemode` + `stateTools`.
 - When a package boundary feels wrong (e.g., a helper package depending on a larger package just for an adapter), prefer moving the adapter out rather than carrying the dependency.
+- **`hitl-captcha-x402` — use legacy wallets, do not create new ones.** The user's payment setup is fixed:
+  - **`SERVER_ADDRESS`** — legacy **external** wallet that receives x402 USDC (not a CDP server wallet). Never create or swap to a new CDP `evm accounts create` wallet for seller payouts.
+  - **Buyer wallet** — existing CDP account `agentwire-x402-bazaar-buyer` (`CDP_BUYER_ACCOUNT` in `scripts/pay-and-solve.sh`). Do not create a new buyer wallet.
+  - **CDP API keys** — reuse `CDP_KEY_ID` + `CDP_KEY_SECRET` from the Cloud Agents dashboard. Do not create new API keys unless the user asks. Portal PEMs are often `BEGIN EC PRIVATE KEY`; the CDP SDK needs **PKCS#8** (`BEGIN PRIVATE KEY`). Convert with `openssl pkcs8 -topk8 -nocrypt` before `wrangler secret put CDP_API_KEY_SECRET`, or run `examples/hitl-captcha-x402/scripts/setup-cdp-secrets.sh`.
 
 ## Boundaries
 
