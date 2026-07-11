@@ -46,9 +46,9 @@ cp .env.example .dev.vars
 
 Set these values in `.dev.vars`:
 
-- `SERVER_ADDRESS` — Ethereum address to receive x402 payments (Base Sepolia: `eip155:84532`)
+- `SERVER_ADDRESS` — **legacy external wallet** to receive x402 USDC on Base mainnet (`eip155:8453`). Do not replace with a newly created CDP server wallet.
 - `NTFY_TOPIC` — ntfy.sh topic you subscribe to on your phone
-- `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` — [CDP API keys](https://docs.cdp.coinbase.com/x402/quickstart-for-sellers) for the recommended facilitator and Bazaar indexing
+- `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` — **required** [CDP API keys](https://docs.cdp.coinbase.com/x402/quickstart-for-sellers) for Base mainnet verify/settle and [Bazaar](https://docs.cdp.coinbase.com/x402/bazaar) discovery indexing
 
 Then:
 
@@ -69,11 +69,23 @@ wrangler secret put CDP_API_KEY_SECRET
 pnpm run deploy --var "NTFY_TOPIC:your-ntfy-topic"
 ```
 
-Without CDP API keys the worker falls back to the signup-free `x402.org` testnet facilitator. **Bazaar discovery indexing requires the CDP facilitator** and at least one successful settlement — see the [Bazaar seller guide](https://docs.cdp.coinbase.com/x402/bazaar#seller-integration).
+Without CDP API keys the worker cannot accept Base mainnet payments. For local testnet-only runs, set `X402_NETWORK=eip155:84532` in `.dev.vars` (falls back to the signup-free `x402.org` facilitator). **Bazaar discovery and the [Bazaar MCP server](https://docs.cdp.coinbase.com/x402/bazaar#bazaar-mcp-server) require the CDP facilitator** and at least one successful settlement — see the [Bazaar seller guide](https://docs.cdp.coinbase.com/x402/bazaar#seller-integration).
 
 `wrangler.jsonc` is the canonical config in this monorepo. `wrangler.toml` is included as an equivalent TOML copy.
 
 Pass `NTFY_TOPIC` at deploy time (or set in `wrangler.jsonc` vars for local dev) so your phone topic does not need to be committed.
+
+### CDP secrets (from Cloud Agents dashboard)
+
+Reuse existing dashboard credentials — do not create new wallets or API keys:
+
+```sh
+chmod +x scripts/setup-cdp-secrets.sh
+export CDP_KEY_ID=... CDP_KEY_SECRET=... SERVER_ADDRESS=... NTFY_TOPIC=...
+./scripts/setup-cdp-secrets.sh
+```
+
+This converts the portal PEM to PKCS#8 and uploads `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, and `SERVER_ADDRESS` to the worker.
 
 ## End-to-end verification
 
@@ -155,6 +167,20 @@ When solved, the service returns cookies, storage, and the final URL from the he
   "userAgent": "Mozilla/5.0 ..."
 }
 ```
+
+## Bazaar + MCP discovery (for AI agents)
+
+Agents discover this service through the CDP x402 Bazaar — not a separate registration step.
+
+| Access mode | Endpoint |
+|-------------|----------|
+| Semantic search (HTTP) | `GET https://api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=captcha` |
+| Paginated catalog | `GET https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources` |
+| **MCP (recommended for agents)** | `https://api.cdp.coinbase.com/platform/v2/x402/discovery/mcp` |
+
+The Bazaar MCP server exposes `search_resources` and `proxy_tool_call`. Wrap your MCP client with `@x402/mcp` for automatic payment handling. See [CDP MCP](https://docs.cdp.coinbase.com/mcp) and [Bazaar MCP](https://docs.cdp.coinbase.com/x402/bazaar#bazaar-mcp-server).
+
+After the first successful **mainnet** settlement through CDP, this endpoint is indexed automatically when `paymentPayload.resource` is set (handled by `@x402/hono`).
 
 ## Related examples
 

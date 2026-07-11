@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pay for and trigger POST /api/solve-captcha using CDP CLI + x402 v2.
+# Pay for and trigger POST /api/solve-captcha using CDP CLI + x402 v2 (Base mainnet).
 #
 # Required env:
 #   CDP_KEY_ID, CDP_KEY_SECRET, CDP_WALLET_SECRET
