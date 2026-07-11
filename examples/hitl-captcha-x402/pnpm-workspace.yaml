@@ -1,0 +1,10 @@
+# Standalone pnpm config for Cloudflare Workers Builds when this example
+# is deployed outside the monorepo root (pnpm 11 reads allowBuilds here).
+packages:
+  - "."
+
+allowBuilds:
+  "@coinbase/x402": true
+  esbuild: true
+  sharp: true
+  workerd: true
